@@ -67,10 +67,24 @@ import net.runelite.client.ui.overlay.OverlayPriority;
 import net.runelite.client.ui.overlay.OverlayUtil;
 import net.runelite.client.ui.overlay.tooltip.Tooltip;
 import net.runelite.client.ui.overlay.tooltip.TooltipManager;
+import net.runelite.api.ObjectComposition;
+
+import java.awt.image.BufferedImage;
+import javax.imageio.ImageIO;
+import java.io.File;
+import java.lang.Exception;
+
+import java.lang.Thread;
+import java.lang.StackTraceElement;
+import net.runelite.api.MainBufferProvider;
+import net.runelite.api.ItemComposition;
 
 @Singleton
 class DevToolsOverlay extends Overlay
 {
+
+	public static int count = 0;
+
 	private static final Font FONT = FontManager.getRunescapeFont().deriveFont(Font.BOLD, 16);
 	private static final Color RED = new Color(221, 44, 0);
 	private static final Color GREEN = new Color(0, 200, 83);
@@ -102,6 +116,12 @@ class DevToolsOverlay extends Overlay
 	@Override
 	public Dimension render(Graphics2D graphics)
 	{
+		/*
+		StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
+		for(StackTraceElement e : stackTraceElements) {
+			System.out.println(e.toString());
+		}*/
+
 		graphics.setFont(FONT);
 
 		if (plugin.getPlayers().isActive())
@@ -302,6 +322,7 @@ class DevToolsOverlay extends Overlay
 
 	private void renderGameObjects(Graphics2D graphics, Tile tile, Player player)
 	{
+		Rectangle viewport = new Rectangle(0,0,515,340);
 		GameObject[] gameObjects = tile.getGameObjects();
 		if (gameObjects != null)
 		{
@@ -309,10 +330,56 @@ class DevToolsOverlay extends Overlay
 			{
 				if (gameObject != null && gameObject.getSceneMinLocation().equals(tile.getSceneLocation()))
 				{
-					renderTileObject(graphics, gameObject, player, GREEN);
+					/*
+					if (player.getLocalLocation().distanceTo(gameObject.getLocalLocation()) <= MAX_DISTANCE)
+					{
+						OverlayUtil.renderTileOverlay(graphics, gameObject, "ID: " + gameObject.getId(), GREEN);
+					}*/
+					
+					// Draw a polygon around the convex hull
+					// of the model vertices
+					Shape p = gameObject.getClickbox();
+					// 1278 1276 1277 ?
+					if (p != null )
+					{
+						Rectangle bounds = p.getBounds();
+						// double area = bounds.getWidth()*bounds.getHeight();
+						if (player.getLocalLocation().distanceTo(gameObject.getLocalLocation()) <= MAX_DISTANCE) {
+							ObjectComposition objectDefinition = getObjectComposition(gameObject.getId());
+							String name = objectDefinition.getName();
+
+							if (name != null) {
+								System.out.println(bounds);
+								graphics.setColor(RED);
+								graphics.draw(bounds);
+								graphics.draw(gameObject.getConvexHull());
+								OverlayUtil.renderTileOverlay(graphics, gameObject, name, GREEN);
+							}
+						}
+					}
+					
+
 				}
 			}
+			
+			MainBufferProvider bufferProvider = (MainBufferProvider) this.client.getBufferProvider();
+			try {
+				BufferedImage img = (BufferedImage) bufferProvider.getImage();
+				//ImageIO.write(img, "png", new File(String.valueOf(count) + "-output.png"));
+				count += 1;
+			} catch(Exception e) {
+				//  Block of code to handle errors
+				System.out.println(e);
+			}
 		}
+		graphics.setColor(YELLOW);
+		graphics.draw(viewport);
+	}
+
+	private ObjectComposition getObjectComposition(int id)
+	{
+		ObjectComposition objectComposition = client.getObjectDefinition(id);
+		return objectComposition.getImpostorIds() == null ? objectComposition : objectComposition.getImpostor();
 	}
 
 	private void renderTileObject(Graphics2D graphics, TileObject tileObject, Player player, Color color)
@@ -320,7 +387,7 @@ class DevToolsOverlay extends Overlay
 		if (tileObject != null)
 		{
 			if (player.getLocalLocation().distanceTo(tileObject.getLocalLocation()) <= MAX_DISTANCE)
-			{
+			{	
 				OverlayUtil.renderTileOverlay(graphics, tileObject, "ID: " + tileObject.getId(), color);
 			}
 		}
@@ -361,8 +428,14 @@ class DevToolsOverlay extends Overlay
 		for (WidgetItem item : inventoryWidget.getWidgetItems())
 		{
 			Rectangle slotBounds = item.getCanvasBounds();
-
-			String idText = "" + item.getId();
+			//System.out.println(slotBounds);
+			ItemComposition itemComposition = client.getItemDefinition(item.getId());
+			String idText = item.getId() + "";
+			if (itemComposition != null)
+			{
+				System.out.println(itemComposition.getName());
+			}
+			
 			FontMetrics fm = graphics.getFontMetrics();
 			Rectangle2D textBounds = fm.getStringBounds(idText, graphics);
 
