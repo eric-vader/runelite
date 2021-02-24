@@ -351,9 +351,9 @@ class DevToolsOverlay extends Overlay
 							if (name != null) {
 								System.out.println(bounds);
 								graphics.setColor(RED);
-								graphics.draw(bounds);
-								graphics.draw(gameObject.getConvexHull());
-								OverlayUtil.renderTileOverlay(graphics, gameObject, name, GREEN);
+								graphics.draw(bounds.intersection(viewport));
+								//graphics.draw(gameObject.getConvexHull());
+								//OverlayUtil.renderTileOverlay(graphics, gameObject, name, GREEN);
 							}
 						}
 					}
